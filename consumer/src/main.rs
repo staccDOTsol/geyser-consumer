@@ -96,17 +96,8 @@ async fn geyser_subscribe(
     resub: usize,
     influxdb_client: Client,
 ) -> anyhow::Result<()> {
-    let mut stream = client.subscribe_once(
-        HashMap::new(), // Add an empty HashMap as the first argument
+    let (mut subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await?;
 
-        request.accounts,
-        request.transactions,
-        request.entry,
-        request.blocks,
-        request.blocks_meta,
-        Some((CommitmentLevel::default())),
-        request.accounts_data_slice,
-    ).await?;
     println!("stream opened");
     let mut counter = 0;
     while let Some(message) = stream.next().await {

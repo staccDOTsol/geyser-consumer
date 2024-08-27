@@ -7,13 +7,14 @@ edition = "2021"
 tokio = { version = "1.0", features = ["full"] }
 lapin = "2.1"
 influxdb = { version = "0.5", features = ["derive"] }
-yellowstone-grpc-client = { workspace = "true" } # 1.16.0+solana.2.0.5
-yellowstone-grpc-proto = { workspace = "true" } # 1.15.0+solana.2.0.5
+yellowstone-grpc-client = {git="https://github.com/rpcpool/yellowstone-grpc", tag="v1.15.2+solana.1.18.22"}# 1.16.0+solana.2.0.5
+yellowstone-grpc-proto = {git="https://github.com/rpcpool/yellowstone-grpc", tag="v1.15.2+solana.1.18.22"}
 chrono = "*"
-subtle = "=2.5.0"
 bs58 = "*"
 tonic = { workspace = "true", features = ["tls"] }
 anyhow = "1.0.86"
 futures = "0.3.30"
 hex = "0.4.3"
-solana-sdk = {workspace = "true"}
+solana-program = "1.18.22"
+solana-sdk = "1.18.22"
+solana-zk-token-sdk = "1.18.22"
