@@ -67,7 +67,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x_token = std::env::var("X_TOKEN").expect("X_TOKEN must be set");
     let influxdb_url = std::env::var("INFLUXDB_URL").unwrap_or_else(|_| "http://influxdb:8086".to_string());
     let pubkey = std::env::var("PUBKEY").expect("PUBKEY must be set");
-    let client = GeyserGrpcClient::connect(geyser_endpoint, Some(x_token), None)?;
+    let client = GeyserGrpcClient::build_from_shared(geyser_endpoint)?
+        .x_token(Some(x_token))?
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(10))
+        .tls_config(ClientTlsConfig::new())?
+        .connect()
+        .await?;
 
 
     let influxdb_client = Client::new(influxdb_url, "mybucket");
