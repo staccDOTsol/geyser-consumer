@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  consumer:
+    build: ./consumer
+    environment:
+      - GEYSER_ENDPOINT=https://grpc.eu1.shyft.to
+      - X_TOKEN=8107a9c7-353f-41d6-8e3c-14fd5c29cce6
+      - INFLUXDB_URL=http://localhost:8086
+      - PUBKEY=TBondmkCYxaPCKG4CHYfVTcwQ8on31xnJrPzk8F8WsS
+    depends_on:
+      - influxdb
+
+  influxdb:
+    image: influxdb:2.0
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=myorg
+      - DOCKER_INFLUXDB_INIT_BUCKET=mybucket
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=myinfluxdbtoken
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - INFLUXDB_URL=http://localhost:8086
+      - INFLUXDB_TOKEN=myinfluxdbtoken
+      - INFLUXDB_ORG=myorg
+      - INFLUXDB_BUCKET=mybucket
+    depends_on:
+      - influxdb
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdb-data:
+  grafana-data:
