@@ -84,20 +84,20 @@ impl BondingWebSocket {
                 }
             }
         }
-    }
-    async fn query_historical_data(&self, start_time: i64, stop_time: i64) -> Vec<BondingChange> {
+    } async fn query_historical_data(&self, start_time: i64, stop_time: i64) -> Vec<BondingChange> {
         let client = self.client.lock().unwrap();
         let query = ReadQuery::new(format!(
             r#"
             from(bucket:"mybucket")
                 |> range(start: {}, stop: {})
-                |> filter(fn: (r) => r.address == "{}")
+                |> filter(fn: (r) => r._measurement == "account_updates" and r.pubkey == "{}")
                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             "#,
             start_time, stop_time, self.address
         ));
     
         let result = client.query(query).await.expect("Failed to query InfluxDB");
+      
         let rows: Vec<Vec<&str>> = result.lines()
         .skip(1) // Skip the header row
         .filter(|line| !line.is_empty())
@@ -119,23 +119,19 @@ impl BondingWebSocket {
     }).collect()
     }
     async fn query_latest_data(&self, address: &str) -> Option<BondingChange> {
-        let query = {
-            let self_lock = self.client.lock().unwrap();
-            ReadQuery::new(format!(
-                r#"
-                from(bucket:"mybucket")
-                    |> range(start: -5s)
-                    |> filter(fn: (r) => r.address == "{}")
-                    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-                    |> last()
-                "#,
-                address
-            ))
-        };
-        let result = {
-            let self_lock = self.client.lock().unwrap();
-            self_lock.query(query).await.expect("Failed to query InfluxDB")
-        };
+        let query = ReadQuery::new(format!(
+            r#"
+            from(bucket:"mybucket")
+                |> range(start: -5s)
+                |> filter(fn: (r) => r._measurement == "account_updates" and r.pubkey == "{}")
+                |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> last()
+            "#,
+            address
+        ));
+        
+        let result = self.client.lock().unwrap().query(query).await.expect("Failed to query InfluxDB");
+        
         
         let rows: Vec<Vec<&str>> = result.lines()
         .skip(1)
@@ -205,7 +201,8 @@ async fn bonding_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRespon
     let address = Pubkey::from_str(
         req.match_info().get("address").unwrap()
     ).map_err(|e| actix_web::error::ErrorBadRequest(e))?;
-    let client = Arc::new(Mutex::new(Client::new("http://localhost:8086", "mybucket").with_token("myinfluxdbtoken")));
+    let client = Arc::new(Mutex::new(Client::new("http://localhost:8086", "mybucket")));
+
     // Here you would typically fetch the account data from Solana
     // For this example, we'll create a dummy account
     let bonding_account = Arc::new(BondingAccount {

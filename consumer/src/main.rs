@@ -1,13 +1,11 @@
-use influxdb::{Client, InfluxDbWriteable};
+use influxdb::{Client, InfluxDbWriteable, WriteQuery};
 use yellowstone_grpc_client::{GeyserGrpcClient, GeyserGrpcClientError};
 use yellowstone_grpc_proto::prelude::*;
 use chrono::Utc;
 use bs58;
 use     futures::{future::TryFutureExt, sink::SinkExt, stream::StreamExt};
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionError};
-
 use std::time::Duration;
-use yellowstone_grpc_client::Interceptor;
 use yellowstone_grpc_proto::prelude::subscribe_update::UpdateOneof;
 use std::collections::HashMap;
 use tonic::transport::channel::ClientTlsConfig;
@@ -69,14 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x_token = std::env::var("X_TOKEN").expect("X_TOKEN must be set");
     let influxdb_url = std::env::var("INFLUXDB_URL").unwrap_or_else(|_| "http://influxdb:8086".to_string());
     let pubkey = std::env::var("PUBKEY").expect("PUBKEY must be set");
+    let client = GeyserGrpcClient::connect(geyser_endpoint, Some(x_token), None)?;
 
-    let client = GeyserGrpcClient::build_from_shared(geyser_endpoint)?
-        .x_token(Some(x_token))?
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(10))
-        .tls_config(ClientTlsConfig::new())?
-        .connect()
-        .await?;
 
     let influxdb_client = Client::new(influxdb_url, "mybucket");
 
@@ -93,18 +85,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let resub = 100; // Example resubscribe value
-    geyser_subscribe(client, request, resub).await?;
+    geyser_subscribe(client, request, resub, influxdb_client).await?;
 
     Ok(())
 }
 
 async fn geyser_subscribe(
-    mut client: GeyserGrpcClient<impl Interceptor>,
+    mut client: GeyserGrpcClient<impl yellowstone_grpc_proto::tonic::service::Interceptor>,
     request: SubscribeRequest,
     resub: usize,
+    influxdb_client: Client,
 ) -> anyhow::Result<()> {
-    let (mut subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await?;
+    let mut stream = client.subscribe_once(
+        HashMap::new(), // Add an empty HashMap as the first argument
 
+        request.accounts,
+        request.transactions,
+        request.entry,
+        request.blocks,
+        request.blocks_meta,
+        Some((CommitmentLevel::default())),
+        request.accounts_data_slice,
+    ).await?;
     println!("stream opened");
     let mut counter = 0;
     while let Some(message) = stream.next().await {
@@ -117,6 +119,19 @@ async fn geyser_subscribe(
                             "new account update: filters {:?}, account: {:#?}",
                             msg.filters, account
                         );
+                        let account_update = AccountUpdate {
+                            time: Utc::now().into(),
+                            pubkey: account.pubkey.to_string(),
+                            lamports: account.lamports,
+                            owner: account.owner.to_string(),
+                            executable: account.executable,
+                            rent_epoch: account.rent_epoch,
+                            data_len: account.data.len().to_string(),
+                            write_version: account.write_version,
+                        };
+                        
+                        let write_query = account_update.into_query("account_updates");
+                        influxdb_client.query(write_query).await?;
                         continue;
                     }
                     _ => {}

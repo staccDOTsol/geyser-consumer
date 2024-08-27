@@ -7,13 +7,13 @@ edition = "2021"
 tokio = { version = "1.0", features = ["full"] }
 lapin = "2.1"
 influxdb = { version = "0.5", features = ["derive"] }
-yellowstone-grpc-client = "1.15.2"
-yellowstone-grpc-proto = "=1.14.2"
+yellowstone-grpc-client = { workspace = "true" } # 1.16.0+solana.2.0.5
+yellowstone-grpc-proto = { workspace = "true" } # 1.15.0+solana.2.0.5
 chrono = "*"
-subtle = "=2.4.1"
+subtle = "=2.5.0"
 bs58 = "*"
-tonic = { version = "*", features = ["tls"] }
+tonic = { workspace = "true", features = ["tls"] }
 anyhow = "1.0.86"
-solana-sdk = "2.0.7"
 futures = "0.3.30"
 hex = "0.4.3"
+solana-sdk = {workspace = "true"}

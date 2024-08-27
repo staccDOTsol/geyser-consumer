@@ -4,7 +4,7 @@ services:
   consumer:
     build: ./consumer
     environment:
-      - GEYSER_ENDPOINT=https://grpc.eu1.shyft.to
+      - GEYSER_ENDPOINT=https://grpc.ams.shyft.to
       - X_TOKEN=8107a9c7-353f-41d6-8e3c-14fd5c29cce6
       - INFLUXDB_URL=http://localhost:8086
       - PUBKEY=TBondmkCYxaPCKG4CHYfVTcwQ8on31xnJrPzk8F8WsS
@@ -42,7 +42,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - "3001:3001"
     volumes:
       - grafana-data:/var/lib/grafana
     depends_on:
